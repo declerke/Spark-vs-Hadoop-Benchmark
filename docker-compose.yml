@@ -1,0 +1,158 @@
+networks:
+  benchmark-net:
+    driver: bridge
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
+  hadoop_historyserver:
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: unless-stopped
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+      - ./data:/benchmark/data
+      - ./src:/benchmark/src
+      - ./logs:/benchmark/logs
+    environment:
+      - CLUSTER_NAME=benchmark-cluster
+    env_file:
+      - ./configs/hadoop/hadoop.env
+    networks:
+      - benchmark-net
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: unless-stopped
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+      - ./data:/benchmark/data
+      - ./src:/benchmark/src
+    env_file:
+      - ./configs/hadoop/hadoop.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    depends_on:
+      - namenode
+    networks:
+      - benchmark-net
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864"
+    env_file:
+      - ./configs/hadoop/hadoop.env
+    depends_on:
+      - namenode
+      - datanode
+    networks:
+      - benchmark-net
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: unless-stopped
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    env_file:
+      - ./configs/hadoop/hadoop.env
+    depends_on:
+      - resourcemanager
+    networks:
+      - benchmark-net
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    env_file:
+      - ./configs/hadoop/hadoop.env
+    depends_on:
+      - resourcemanager
+    networks:
+      - benchmark-net
+
+  spark-master:
+    build: .
+    container_name: spark-master
+    restart: unless-stopped
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/benchmark/data
+      - ./src:/benchmark/src
+      - ./logs:/benchmark/logs
+      - ./plots:/benchmark/plots
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    networks:
+      - benchmark-net
+
+  spark-worker:
+    build: .
+    container_name: spark-worker
+    restart: unless-stopped
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=4G
+      - SPARK_WORKER_CORES=4
+    volumes:
+      - ./data:/benchmark/data
+      - ./src:/benchmark/src
+      - ./logs:/benchmark/logs
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    networks:
+      - benchmark-net
+
+  jupyter:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: jupyter
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=benchmark
+      - SPARK_MASTER=spark://spark-master:7077
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
+    volumes:
+      - ./notebooks:/home/jovyan/notebooks
+      - ./data:/home/jovyan/data
+      - ./logs:/home/jovyan/logs
+      - ./plots:/home/jovyan/plots
+      - ./src:/home/jovyan/src
+      - ./scripts:/home/jovyan/scripts
+      - .:/benchmark
+    depends_on:
+      - spark-master
+      - namenode
+    user: root
+    networks:
+      - benchmark-net
+    command: >
+      bash -c "pip install psutil matplotlib seaborn pandas --quiet &&
+               start-notebook.sh --NotebookApp.token='benchmark' --NotebookApp.ip='0.0.0.0'"
