@@ -32,15 +32,12 @@ def flag_amount(log_amount, mean, std, z_threshold):
     z = (log_amount - mean) / std
     return z > z_threshold, z
 
-# Collecting all lines because the logic requires global stats 
-# before individual record flagging
 all_lines = []
 for line in sys.stdin:
     line = line.strip()
     if line:
         all_lines.append(line)
 
-# First pass: Extract global log amounts for statistics
 for line in all_lines:
     parts = line.split("\t")
     if len(parts) < 3:
@@ -54,7 +51,6 @@ for line in all_lines:
 
 global_mean, global_std = compute_global_stats(global_log_amounts)
 
-# Second pass: Process Velocity buckets
 bucket_records = {}
 for line in all_lines:
     parts = line.split("\t")
@@ -86,7 +82,6 @@ for line in all_lines:
         "is_fraud": is_fraud
     })
 
-# Final output: Apply thresholds and emit CSV format
 for bucket, recs in bucket_records.items():
     vel_flag, vel_count = flag_velocity(recs, VELOCITY_THRESHOLD)
     for rec in recs:
