@@ -8,14 +8,12 @@ tx_records = []
 dim_records = []
 
 def compute_rolling_window(transactions, window_size):
-    # Sort by step to ensure time-based windowing is accurate
     transactions_sorted = sorted(transactions, key=lambda r: float(r["step"]))
     results = []
     for i, tx in enumerate(transactions_sorted):
         current_step = float(tx["step"])
         window_start = current_step - window_size
-        
-        # Calculate windowed metrics for this specific transaction
+    
         rolling_sum = 0.0
         rolling_count = 0
         for t in transactions_sorted:
@@ -35,14 +33,12 @@ def emit_joined(join_key, tx_records, dim_records):
     if not tx_records:
         return
 
-    # Create a lookup for dimensions (Join Logic)
     dim_lookup = {}
     for dim in dim_records:
         dim_lookup[dim.get("target", "")] = dim
 
     enriched_tx = []
     for tx in tx_records:
-        # Join on counterparty/merchant
         dim_info = dim_lookup.get(tx.get("counterparty", ""), {})
         enriched_tx.append({
             **tx,
@@ -50,7 +46,6 @@ def emit_joined(join_key, tx_records, dim_records):
             "dim_weight": dim_info.get("weight", 0.0)
         })
 
-    # Apply rolling window logic per join key (customer/account)
     windowed = compute_rolling_window(enriched_tx, WINDOW_SIZE_STEPS)
 
     for rec in windowed:
@@ -74,7 +69,6 @@ for line in sys.stdin:
     join_key = parts[0]
     tag = parts[1]
 
-    # Partition boundary check
     if join_key != current_join_key:
         if current_join_key is not None:
             emit_joined(current_join_key, tx_records, dim_records)
@@ -87,7 +81,7 @@ for line in sys.stdin:
         step = parts[3]
         tx_type = parts[4]
         amount = parts[5]
-        # Counterparty is at index 8 based on mapper output
+    
         counterparty = parts[8] if len(parts) > 8 else ""
         is_fraud = parts[9] if len(parts) > 9 else "0"
 
@@ -123,6 +117,5 @@ for line in sys.stdin:
             "is_fraud": is_fraud
         })
 
-# Flush remaining records
 if current_join_key is not None:
     emit_joined(current_join_key, tx_records, dim_records)
