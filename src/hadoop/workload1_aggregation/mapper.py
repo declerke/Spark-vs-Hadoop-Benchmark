@@ -26,7 +26,6 @@ def parse_banksim(line):
         return None
     return {
         "step": fields[0].strip("'"),
-        # Agreed Fix: Standard BankSim schema has category at 7 and amount at 8
         "type": fields[7].strip("'"),
         "amount": fields[8].strip("'"),
         "nameOrig": fields[1].strip("'"),
@@ -36,7 +35,6 @@ def parse_banksim(line):
 def emit(key, amount):
     try:
         amt = float(amount)
-        # Standardizing output for the reducer to include the count '1'
         print(f"{key}\t{amt}\t1")
     except (ValueError, TypeError):
         pass
@@ -61,7 +59,6 @@ for line in sys.stdin:
             key = f"PAYSIM\t{account}\t{day}\t{tx_type}"
             emit(key, amount)
     elif len(parts) >= 10:
-        # Using the parse_banksim function for consistency
         rec = parse_banksim(line)
         if rec:
             step = rec["step"]
