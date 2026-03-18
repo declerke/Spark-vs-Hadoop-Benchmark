@@ -42,7 +42,6 @@ def parse_banksim_transaction(fields):
         zip_merch = fields[6].strip().strip("'")
         category = fields[7].strip().strip("'")
         amount = float(fields[8].strip().strip("'"))
-        # Using a safer conversion for potential float-strings in fraud column
         fraud = int(float(fields[9].strip().strip("'")))
     except (ValueError, IndexError, TypeError):
         return None
@@ -115,7 +114,6 @@ for line in sys.stdin:
         rec = parse_banksim_transaction(fields)
         if rec:
             jk = rec["join_key"]
-            # Aligning output format to match PaySim for the reducer
             print(
                 f"{jk}\tTX\tBANKSIM\t{rec['step']}\t{rec['type']}\t"
                 f"{rec['amount']}\t{rec.get('age', '')}\t{rec.get('gender', '')}\t"
