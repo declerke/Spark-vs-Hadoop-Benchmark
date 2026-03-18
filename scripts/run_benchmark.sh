@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Added discussed environment exports
 export HADOOP_HOME=/opt/hadoop-3.2.1
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export PATH=$HADOOP_HOME/bin:$JAVA_HOME/bin:$PATH
@@ -30,13 +29,11 @@ log() {
 check_prerequisites() {
     log "Checking prerequisites..."
 
-    # Discussed Fix: Ensure /usr/local/bin/hadoop is a symlink, not a broken file
     if [ -f /usr/local/bin/hadoop ] && [ ! -L /usr/local/bin/hadoop ]; then
         rm -f /usr/local/bin/hadoop
         ln -s /opt/hadoop-3.2.1/bin/hadoop /usr/local/bin/hadoop
     fi
 
-    # Discussed Fix: Inject JAVA_HOME directly into Hadoop environment config
     if [ -f "${HADOOP_HOME}/etc/hadoop/hadoop-env.sh" ]; then
         sed -i '/export JAVA_HOME=/d' "${HADOOP_HOME}/etc/hadoop/hadoop-env.sh"
         echo "export JAVA_HOME=${JAVA_HOME}" >> "${HADOOP_HOME}/etc/hadoop/hadoop-env.sh"
@@ -72,7 +69,6 @@ check_prerequisites() {
             export PATH="${PATH}:${HADOOP_HOME}/bin"
             log "Hadoop ${HADOOP_VER} installed successfully to ${HADOOP_HOME}"
         else
-            # Discussed Fix: Use absolute path for version check to bypass shim issues
             log "Hadoop found: $(${HADOOP_HOME}/bin/hadoop version 2>/dev/null | head -1)"
         fi
     fi
@@ -112,7 +108,6 @@ setup_hdfs() {
     export HADOOP_CONF_DIR="${BENCHMARK_BASE_DIR}/configs/hadoop"
     export HADOOP_SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=5"
 
-    # Discussed Fix: Clear existing directories to prevent "Already Exists" errors
     hdfs dfs -rm -r /benchmark_input /benchmark_output 2>/dev/null || true
 
     hdfs dfs -mkdir -p /benchmark_input 2>/dev/null || true
@@ -136,7 +131,6 @@ run_benchmark() {
 
     export HADOOP_CONF_DIR="${BENCHMARK_BASE_DIR}/configs/hadoop"
 
-    # Added exports to ensure the python runner inherits the corrected paths
     BENCHMARK_BASE_DIR="${BENCHMARK_BASE_DIR}" \
     HADOOP_HOME="${HADOOP_HOME}" \
     JAVA_HOME="${JAVA_HOME}" \
