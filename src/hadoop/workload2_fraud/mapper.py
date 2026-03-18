@@ -45,7 +45,6 @@ def parse_line(line):
     elif len(fields) >= 10:
         step = fields[0].strip().strip("'")
         customer = fields[1].strip().strip("'")
-        # Fixed index for amount in BankSim (8) and fraud (9)
         amount_raw = fields[8].strip().strip("'")
         fraud = fields[9].strip().strip("'")
 
@@ -88,8 +87,6 @@ for line in sys.stdin:
     tx_type = rec["tx_type"]
     is_fraud = rec["is_fraud"]
 
-    # Emitting with prefixes to allow the reducer to distinguish between 
-    # Global statistics gathering and Velocity bucket processing
     print(f"VEL\t{hour_bucket}\t{amount}\t{dataset}\t{account}\t{step}\t{tx_type}\t{is_fraud}")
 
     log_amount = math.log1p(amount) if amount > 0 else 0.0
