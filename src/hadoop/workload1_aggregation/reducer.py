@@ -11,7 +11,6 @@ for line in sys.stdin:
         continue
 
     parts = line.split("\t")
-    # Mapper now emits: key_dataset\tkey_acc\tkey_day\tkey_type\tamount\t1
     if len(parts) < 6:
         continue
 
